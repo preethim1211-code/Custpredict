@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Sign In – CustPredict{% endblock %}
+
+{% block auth_content %}
+<div class="login-wrapper">
+  <div class="login-card">
+
+    <div class="login-brand">
+      <span class="logo-icon" style="font-size:38px;display:block;margin-bottom:10px;
+        background:linear-gradient(135deg,#4f8ef7,#00cfdd);
+        -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">◈</span>
+      <h2>CustPredict</h2>
+      <p>AI-Powered Customer Intelligence</p>
+    </div>
+
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in msgs %}
+        <div class="alert alert-{{ cat }} mb-3">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('login') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+      <div class="form-group-custom">
+        <label>Username or Email</label>
+        <div class="input-wrap">
+          <i class="bi bi-person"></i>
+          <input type="text" name="identifier" class="form-control"
+                 placeholder="Username or email address" required autofocus/>
+        </div>
+      </div>
+
+      <div class="form-group-custom">
+        <label>Password</label>
+        <div class="input-wrap">
+          <i class="bi bi-lock"></i>
+          <input type="password" name="password" class="form-control"
+                 placeholder="••••••••" required/>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-login">
+        Sign In <i class="bi bi-arrow-right"></i>
+      </button>
+    </form>
+
+    <p class="login-hint" style="margin-top:20px;">
+      Don't have an account?
+      <a href="{{ url_for('register') }}" style="color:var(--accent-cyan);">Create one for free →</a>
+    </p>
+
+  </div>
+</div>
+{% endblock %}

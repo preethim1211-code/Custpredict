@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}Model Performance – CustPredict{% endblock %}
+{% block page_title %}Model Performance{% endblock %}
+
+{% block content %}
+<!-- Model comparison table -->
+<div class="data-card mb-4">
+  <div class="data-card-header"><h6>Churn Prediction — Model Comparison</h6></div>
+  <div class="table-responsive">
+    <table class="table custom-table">
+      <thead>
+        <tr><th>Model</th><th>Accuracy</th><th>Precision</th><th>Recall</th><th>F1 Score</th><th>CV Mean (5-fold)</th><th>CV Std</th></tr>
+      </thead>
+      <tbody>
+        {% for key, label in [('lr','Logistic Regression'),('rf','Random Forest'),('xgb','XGBoost')] %}
+        {% set m = metrics[key] %}
+        <tr>
+          <td><strong>{{ label }}</strong></td>
+          <td><span class="metric-val">{{ "%.1f"|format(m.accuracy*100) }}%</span></td>
+          <td>{{ "%.3f"|format(m.precision) }}</td>
+          <td>{{ "%.3f"|format(m.recall) }}</td>
+          <td><span class="badge-pill badge-blue">{{ "%.3f"|format(m.f1) }}</span></td>
+          <td>{{ "%.3f"|format(m.cv_mean) }}</td>
+          <td class="text-muted">± {{ "%.3f"|format(m.cv_std) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Metric bar chart -->
+<div class="row g-4 mb-4">
+  <div class="col-lg-8">
+    <div class="chart-card">
+      <h6 class="chart-title">Accuracy Comparison</h6>
+      <canvas id="modelCompareChart" height="160"></canvas>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="chart-card">
+      <h6 class="chart-title">F1 Score</h6>
+      <canvas id="f1Chart" height="160"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Confusion matrices -->
+<div class="row g-4 mb-4">
+  {% for key, label in [('lr','Logistic Regression'),('rf','Random Forest'),('xgb','XGBoost')] %}
+  {% set cm = metrics[key].confusion %}
+  <div class="col-lg-4">
+    <div class="data-card p-4">
+      <h6 class="section-heading mb-3">{{ label }} — Confusion Matrix</h6>
+      <table class="conf-matrix">
+        <thead>
+          <tr><th></th><th class="text-center">Pred: No</th><th class="text-center">Pred: Yes</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>Actual: No</th>
+            <td class="conf-tp">{{ cm[0][0] }}</td>
+            <td class="conf-fp">{{ cm[0][1] }}</td>
+          </tr>
+          <tr>
+            <th>Actual: Yes</th>
+            <td class="conf-fn">{{ cm[1][0] }}</td>
+            <td class="conf-tn">{{ cm[1][1] }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="conf-legend mt-2">
+        <span class="cl-tp">TN</span><span class="cl-fp">FP</span>
+        <span class="cl-fn">FN</span><span class="cl-tn">TP</span>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Feature importance -->
+<div class="data-card p-4">
+  <h6 class="section-heading mb-4">Random Forest — Feature Importance (Churn)</h6>
+  <div class="row align-items-center">
+    <div class="col-lg-7">
+      <canvas id="featImpChart" height="180"></canvas>
+    </div>
+    <div class="col-lg-5">
+      <div class="feat-imp-list">
+        {% for feat, val in feat_imp.items()|sort(attribute='1', reverse=true) %}
+        <div class="fi-row">
+          <span class="fi-name">{{ feat }}</span>
+          <div class="fi-bar-wrap">
+            <div class="fi-bar" style="width:{{ (val * 400)|round }}%"></div>
+          </div>
+          <span class="fi-val">{{ "%.1f"|format(val * 100) }}%</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+Chart.defaults.color = '#8892a4';
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+
+const models   = ['Logistic Reg.', 'Random Forest', 'XGBoost'];
+const accuracy = [{{ metrics.lr.accuracy }}, {{ metrics.rf.accuracy }}, {{ metrics.xgb.accuracy }}].map(v => +(v*100).toFixed(1));
+const f1s      = [{{ metrics.lr.f1 }}, {{ metrics.rf.f1 }}, {{ metrics.xgb.f1 }}];
+
+new Chart(document.getElementById('modelCompareChart'), {
+  type: 'bar',
+  data: {
+    labels: models,
+    datasets: [
+      { label:'Accuracy %', data: accuracy, backgroundColor:'rgba(79,142,247,.7)', borderRadius:8, borderSkipped:false },
+      { label:'Precision',  data: [{{ metrics.lr.precision }}, {{ metrics.rf.precision }}, {{ metrics.xgb.precision }}].map(v => +(v*100).toFixed(1)), backgroundColor:'rgba(0,217,126,.6)', borderRadius:8, borderSkipped:false },
+      { label:'Recall',     data: [{{ metrics.lr.recall }}, {{ metrics.rf.recall }}, {{ metrics.xgb.recall }}].map(v => +(v*100).toFixed(1)), backgroundColor:'rgba(255,209,102,.6)', borderRadius:8, borderSkipped:false },
+    ]
+  },
+  options: { plugins: { legend: { position:'top' } },
+    scales: { y: { min:0, max:100, grid:{ color:'#1e2a3a' } }, x:{ grid:{ display:false } } } }
+});
+
+new Chart(document.getElementById('f1Chart'), {
+  type: 'doughnut',
+  data: {
+    labels: models,
+    datasets: [{ data: f1s.map(v => +(v*100).toFixed(1)),
+      backgroundColor:['#4f8ef7','#00d97e','#ffd166'], borderWidth:0, hoverOffset:6 }]
+  },
+  options: { plugins: { legend: { position:'bottom' } }, cutout:'65%' }
+});
+
+new Chart(document.getElementById('featImpChart'), {
+  type: 'bar',
+  data: {
+    labels: {{ feat_names|tojson }},
+    datasets: [{ label:'Importance', data: {{ feat_vals|tojson }},
+      backgroundColor:'rgba(155,114,247,.75)', borderRadius:8, borderSkipped:false }]
+  },
+  options: {
+    indexAxis: 'y',
+    plugins: { legend: { display:false } },
+    scales: { x: { grid:{ color:'#1e2a3a' } }, y:{ grid:{ display:false } } }
+  }
+});
+</script>
+{% endblock %}

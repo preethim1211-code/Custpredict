@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Customers – CustPredict{% endblock %}
+{% block page_title %}All Customers{% endblock %}
+
+{% block content %}
+<!-- Search & Filter bar -->
+<div class="data-card p-3 mb-4">
+  <form method="GET" action="{{ url_for('customers') }}" class="filter-form">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label-custom">Search</label>
+        <div class="input-wrap" style="position:relative;">
+          <i class="bi bi-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#4a5568;pointer-events:none;"></i>
+          <input type="text" name="q" value="{{ q }}" class="form-control form-control-custom" style="padding-left:36px;" placeholder="Search by name…"/>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label-custom">Churn</label>
+        <select name="churn" class="form-control form-control-custom">
+          <option value="">All</option>
+          <option value="Yes" {{ 'selected' if churn_f=='Yes' }}>Yes</option>
+          <option value="No"  {{ 'selected' if churn_f=='No'  }}>No</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label-custom">Value</label>
+        <select name="value" class="form-control form-control-custom">
+          <option value="">All</option>
+          <option value="High"   {{ 'selected' if value_f=='High'   }}>High</option>
+          <option value="Medium" {{ 'selected' if value_f=='Medium' }}>Medium</option>
+          <option value="Low"    {{ 'selected' if value_f=='Low'    }}>Low</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label-custom">Segment</label>
+        <select name="segment" class="form-control form-control-custom">
+          <option value="">All</option>
+          <option value="Gold"   {{ 'selected' if seg_f=='Gold'   }}>Gold</option>
+          <option value="Silver" {{ 'selected' if seg_f=='Silver' }}>Silver</option>
+          <option value="Bronze" {{ 'selected' if seg_f=='Bronze' }}>Bronze</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label-custom">Sort By</label>
+        <select name="sort" class="form-control form-control-custom">
+          <option value="date"  {{ 'selected' if sort=='date'  }}>Date Added</option>
+          <option value="spend" {{ 'selected' if sort=='spend' }}>Spending ↓</option>
+          <option value="age"   {{ 'selected' if sort=='age'   }}>Age ↑</option>
+        </select>
+      </div>
+      <div class="col-md-1">
+        <button type="submit" class="btn-predict" style="padding:10px 14px;">
+          <i class="bi bi-funnel-fill"></i>
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<div class="data-card">
+  <div class="data-card-header">
+    <h6>{{ total }} Records {{ '(filtered)' if q or churn_f or value_f or seg_f else '' }}</h6>
+    <div style="display:flex;gap:8px;">
+      <a href="{{ url_for('export_csv') }}" class="btn-sm-pill"><i class="bi bi-download"></i> Export</a>
+      <a href="{{ url_for('predict') }}"    class="btn-sm-pill"><i class="bi bi-plus"></i> Add</a>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table custom-table">
+      <thead>
+        <tr>
+          <th>#</th><th>Name</th><th>Age</th><th>Gender</th>
+          <th>Freq</th><th>Spending</th><th>Status</th>
+          <th>Churn RF</th><th>Churn XGB</th><th>Value RF</th><th>Segment</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in customers %}
+        <tr>
+          <td class="text-muted">{{ c.id }}</td>
+          <td><strong>{{ c.name }}</strong></td>
+          <td>{{ c.age }}</td>
+          <td>{{ c.gender }}</td>
+          <td>{{ c.purchase_freq }}/yr</td>
+          <td>${{ "%.0f"|format(c.total_spending) }}</td>
+          <td><span class="badge-pill badge-status-{{ c.status|lower|replace(' ','-') }}">{{ c.status }}</span></td>
+          <td><span class="badge-pill {{ 'badge-danger' if c.churn_rf=='Yes' else 'badge-success' }}">{{ c.churn_rf }} {{ "%.0f"|format(c.churn_prob_rf) }}%</span></td>
+          <td><span class="badge-pill {{ 'badge-danger' if c.churn_xgb=='Yes' else 'badge-success' }}">{{ c.churn_xgb }}</span></td>
+          <td><span class="badge-pill {{ 'badge-gold' if c.value_rf=='High' else ('badge-blue' if c.value_rf=='Medium' else 'badge-gray') }}">{{ c.value_rf }}</span></td>
+          <td><span class="badge-pill {{ 'badge-gold' if c.segment=='Gold' else ('badge-silver' if c.segment=='Silver' else 'badge-bronze') }}">{{ c.segment }}</span></td>
+          <td>
+            <div style="display:flex;gap:4px;">
+              <a href="{{ url_for('customer_detail', cid=c.id) }}" class="btn-icon" title="View"><i class="bi bi-eye"></i></a>
+              <a href="{{ url_for('customer_edit', cid=c.id) }}"   class="btn-icon" title="Edit"><i class="bi bi-pencil"></i></a>
+              {% if current_user.role == 'admin' %}
+              <form method="POST" action="{{ url_for('customer_delete', cid=c.id) }}"
+                    onsubmit="return confirm('Delete {{ c.name }}?')" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button type="submit" class="btn-icon btn-icon-danger" title="Delete"><i class="bi bi-trash"></i></button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="12" class="text-center py-5 text-muted">No customers match your filters.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if pages > 1 %}
+  <div class="pagination-wrap">
+    {% if page > 1 %}<a href="{{ url_for('customers', page=page-1, q=q, churn=churn_f, value=value_f, segment=seg_f, sort=sort) }}" class="pg-btn"><i class="bi bi-chevron-left"></i></a>{% endif %}
+    {% for p in range(1, pages+1) %}
+      <a href="{{ url_for('customers', page=p, q=q, churn=churn_f, value=value_f, segment=seg_f, sort=sort) }}"
+         class="pg-btn {{ 'pg-active' if p==page }}">{{ p }}</a>
+    {% endfor %}
+    {% if page < pages %}<a href="{{ url_for('customers', page=page+1, q=q, churn=churn_f, value=value_f, segment=seg_f, sort=sort) }}" class="pg-btn"><i class="bi bi-chevron-right"></i></a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

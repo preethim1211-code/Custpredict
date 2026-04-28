@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}{{ c.name }} – CustPredict{% endblock %}
+{% block page_title %}Customer Profile{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <!-- Left: profile -->
+  <div class="col-lg-4">
+    <div class="data-card p-4 text-center mb-4">
+      <div class="profile-avatar">{{ c.name[0].upper() }}</div>
+      <h4 class="mt-3 mb-1">{{ c.name }}</h4>
+      <p class="text-muted mb-2">{{ c.gender }}, {{ c.age }} years old</p>
+      <span class="badge-pill badge-status-{{ c.status|lower|replace(' ','-') }} mb-3" style="font-size:12px;">{{ c.status }}</span>
+
+      <div class="profile-stats">
+        <div class="ps-item"><span class="ps-val">${{ "%.0f"|format(c.total_spending) }}</span><span class="ps-label">Spent</span></div>
+        <div class="ps-item"><span class="ps-val">{{ c.purchase_freq }}</span><span class="ps-label">Freq/yr</span></div>
+        <div class="ps-item"><span class="ps-val">{{ ([]|list|count) or '—' }}</span><span class="ps-label">Days</span></div>
+      </div>
+
+      <div class="mt-3">
+        <div class="detail-row"><span>Last Purchase</span><strong>{{ c.last_purchase_date.strftime('%d %b %Y') }}</strong></div>
+        <div class="detail-row"><span>Segment</span>
+          <span class="badge-pill {{ 'badge-gold' if c.segment=='Gold' else ('badge-silver' if c.segment=='Silver' else 'badge-bronze') }}">{{ c.segment }}</span>
+        </div>
+        <div class="detail-row"><span>Added by</span><strong>{{ c.added_by or '—' }}</strong></div>
+        <div class="detail-row"><span>Added on</span><strong>{{ c.created_at.strftime('%d %b %Y') }}</strong></div>
+      </div>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="data-card p-3">
+      <h6 class="section-heading mb-3"><i class="bi bi-lightning me-2"></i>Actions</h6>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <a href="{{ url_for('customer_edit', cid=c.id) }}" class="btn-action-pill btn-blue" style="justify-content:center;">
+          <i class="bi bi-pencil"></i> Edit Customer
+        </a>
+        <a href="{{ url_for('export_pdf', cid=c.id) }}" class="btn-action-pill btn-purple" style="justify-content:center;">
+          <i class="bi bi-file-earmark-pdf"></i> Download PDF Report
+        </a>
+        {% if current_user.role=='admin' %}
+        <form method="POST" action="{{ url_for('customer_delete', cid=c.id) }}"
+              onsubmit="return confirm('Permanently delete {{ c.name }}?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <button type="submit" class="btn-action-pill btn-red w-100" style="justify-content:center;border:none;cursor:pointer;">
+            <i class="bi bi-trash"></i> Delete
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: predictions -->
+  <div class="col-lg-8">
+    <!-- Churn -->
+    <div class="data-card p-4 mb-4">
+      <h6 class="section-heading mb-3">Churn Predictions (3 Models)</h6>
+      <div class="row g-3">
+        {% for label, churn, prob in [
+            ('Logistic Reg.', c.churn_lr, c.churn_prob_lr),
+            ('Random Forest', c.churn_rf, c.churn_prob_rf),
+            ('XGBoost',       c.churn_xgb, c.churn_prob_xgb)
+        ] %}
+        <div class="col-4">
+          <div class="model-result-card {{ 'danger-card' if churn=='Yes' else 'success-card' }}">
+            <span class="model-label">{{ label }}</span>
+            <span class="model-verdict">{{ churn }}</span>
+            <div class="prob-bar-wrap">
+              <div class="prob-bar" style="width:{{ prob }}%;background:{{ '#ff4d6d' if churn=='Yes' else '#00d97e' }}"></div>
+            </div>
+            <span class="prob-text">{{ "%.1f"|format(prob) }}%</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Value -->
+    <div class="data-card p-4 mb-4">
+      <h6 class="section-heading mb-3">Customer Value (3 Models)</h6>
+      <div class="row g-3">
+        {% for label, val in [('Logistic Reg.', c.value_lr),('Random Forest', c.value_rf),('XGBoost', c.value_xgb)] %}
+        <div class="col-4">
+          <div class="model-result-card value-card">
+            <span class="model-label">{{ label }}</span>
+            <span class="model-verdict {{ 'text-gold' if val=='High' else ('text-blue' if val=='Medium' else 'text-muted') }}">{{ val }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- SHAP -->
+    {% if shap_data %}
+    <div class="data-card p-4 mb-4">
+      <h6 class="section-heading mb-3">SHAP Explainability — What drove the churn prediction?</h6>
+      <canvas id="shapChart" height="160"></canvas>
+      <p class="shap-hint mt-2"><span class="shap-pos-text">■ Positive = increases churn risk</span> &nbsp; <span class="shap-neg-text">■ Negative = reduces churn risk</span></p>
+    </div>
+    {% endif %}
+
+    <!-- Notes -->
+    {% if c.notes %}
+    <div class="data-card p-4">
+      <h6 class="section-heading mb-2">Notes</h6>
+      <p class="text-secondary mb-0" style="font-size:.9rem;">{{ c.notes }}</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="mt-3">
+  <a href="{{ url_for('customers') }}" class="btn-back"><i class="bi bi-arrow-left me-1"></i>Back to Customers</a>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if shap_data %}
+<script>
+const shapData = {{ shap_data|tojson }};
+const labels   = Object.keys(shapData);
+const values   = Object.values(shapData);
+const bgColors = values.map(v => v > 0 ? 'rgba(255,77,109,.7)' : 'rgba(79,142,247,.7)');
+
+new Chart(document.getElementById('shapChart'), {
+  type: 'bar',
+  data: {
+    labels: labels,
+    datasets: [{ label: 'SHAP Value', data: values,
+      backgroundColor: bgColors, borderRadius: 6, borderSkipped: false }]
+  },
+  options: {
+    indexAxis: 'y',
+    plugins: { legend: { display:false } },
+    scales: {
+      x: { grid: { color:'#1e2a3a' }, ticks: { color:'#8892a4' } },
+      y: { grid: { display:false },   ticks: { color:'#8892a4' } }
+    }
+  }
+});
+</script>
+{% endif %}
+{% endblock %}

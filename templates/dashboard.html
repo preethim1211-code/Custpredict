@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Dashboard – CustPredict{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="row g-4 mb-4">
+  <div class="col-sm-6 col-xl-3">
+    <div class="kpi-card kpi-blue">
+      <div class="kpi-icon"><i class="bi bi-people-fill"></i></div>
+      <div class="kpi-body"><span class="kpi-label">Total Customers</span><span class="kpi-value">{{ stats.total }}</span></div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="kpi-card kpi-red">
+      <div class="kpi-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+      <div class="kpi-body"><span class="kpi-label">Churn Risk</span><span class="kpi-value">{{ stats.churn_yes }}</span></div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="kpi-card kpi-green">
+      <div class="kpi-icon"><i class="bi bi-star-fill"></i></div>
+      <div class="kpi-body"><span class="kpi-label">High-Value</span><span class="kpi-value">{{ stats.high_value }}</span></div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="kpi-card kpi-purple">
+      <div class="kpi-icon"><i class="bi bi-currency-dollar"></i></div>
+      <div class="kpi-body"><span class="kpi-label">Avg. Spend</span><span class="kpi-value">${{ stats.avg_spend }}</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-lg-3">
+    <div class="chart-card">
+      <h6 class="chart-title">Churn Distribution</h6>
+      <canvas id="churnChart" height="230"></canvas>
+    </div>
+  </div>
+  <div class="col-lg-3">
+    <div class="chart-card">
+      <h6 class="chart-title">Customer Value</h6>
+      <canvas id="valueChart" height="230"></canvas>
+    </div>
+  </div>
+  <div class="col-lg-3">
+    <div class="chart-card">
+      <h6 class="chart-title">K-Means Segments</h6>
+      <canvas id="segmentChart" height="230"></canvas>
+    </div>
+  </div>
+  <div class="col-lg-3">
+    <div class="chart-card">
+      <h6 class="chart-title">Customer Status</h6>
+      <canvas id="statusChart" height="230"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-12">
+    <div class="chart-card">
+      <h6 class="chart-title">Monthly Customer Additions</h6>
+      <canvas id="monthlyChart" height="90"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Quick actions -->
+<div class="row g-3 mb-4">
+  <div class="col-12">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <a href="{{ url_for('predict') }}" class="btn-action-pill btn-blue"><i class="bi bi-plus-circle"></i> Add Customer</a>
+      <a href="{{ url_for('export_csv') }}" class="btn-action-pill btn-green"><i class="bi bi-download"></i> Export CSV</a>
+      <a href="{{ url_for('import_csv') }}" class="btn-action-pill btn-purple"><i class="bi bi-upload"></i> Bulk Import</a>
+      <a href="{{ url_for('model_performance') }}" class="btn-action-pill btn-orange"><i class="bi bi-bar-chart-line"></i> Model Stats</a>
+    </div>
+  </div>
+</div>
+
+<div class="data-card">
+  <div class="data-card-header">
+    <h6>Recent Customers</h6>
+    <a href="{{ url_for('customers') }}" class="btn-sm-pill">View all <i class="bi bi-arrow-right"></i></a>
+  </div>
+  <div class="table-responsive">
+    <table class="table custom-table">
+      <thead>
+        <tr><th>Name</th><th>Age</th><th>Spending</th><th>Status</th><th>Churn (RF)</th><th>Value (RF)</th><th>XGB Churn</th><th>Segment</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for c in customers %}
+        <tr>
+          <td><strong>{{ c.name }}</strong></td>
+          <td>{{ c.age }}</td>
+          <td>${{ "%.0f"|format(c.total_spending) }}</td>
+          <td><span class="badge-pill badge-status-{{ c.status|lower|replace(' ','-') }}">{{ c.status }}</span></td>
+          <td><span class="badge-pill {{ 'badge-danger' if c.churn_rf=='Yes' else 'badge-success' }}">{{ c.churn_rf }} ({{ "%.0f"|format(c.churn_prob_rf) }}%)</span></td>
+          <td><span class="badge-pill {{ 'badge-gold' if c.value_rf=='High' else ('badge-blue' if c.value_rf=='Medium' else 'badge-gray') }}">{{ c.value_rf }}</span></td>
+          <td><span class="badge-pill {{ 'badge-danger' if c.churn_xgb=='Yes' else 'badge-success' }}">{{ c.churn_xgb }}</span></td>
+          <td><span class="badge-pill {{ 'badge-gold' if c.segment=='Gold' else ('badge-silver' if c.segment=='Silver' else 'badge-bronze') }}">{{ c.segment }}</span></td>
+          <td><a href="{{ url_for('customer_detail', cid=c.id) }}" class="btn-icon"><i class="bi bi-eye"></i></a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" class="text-center py-4 text-muted">No customers yet. <a href="{{ url_for('predict') }}">Add one →</a></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const D = {{ chart_data|safe }};
+Chart.defaults.color = '#8892a4';
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+
+new Chart(document.getElementById('churnChart'), {
+  type: 'doughnut',
+  data: { labels: ['Churned','Retained'],
+    datasets: [{ data: D.churn, backgroundColor: ['#ff4d6d','#00d97e'], borderWidth:0, hoverOffset:6 }] },
+  options: { plugins: { legend: { position:'bottom' } }, cutout:'70%' }
+});
+
+new Chart(document.getElementById('valueChart'), {
+  type: 'bar',
+  data: { labels: ['High','Medium','Low'],
+    datasets: [{ data: D.value, backgroundColor: ['#ffd166','#06d6a0','#ef476f'], borderRadius:8, borderSkipped:false }] },
+  options: { plugins: { legend: { display:false } },
+    scales: { y: { grid: { color:'#1e2a3a' } }, x: { grid: { display:false } } } }
+});
+
+new Chart(document.getElementById('segmentChart'), {
+  type: 'polarArea',
+  data: { labels: ['Gold','Silver','Bronze'],
+    datasets: [{ data: D.segment, backgroundColor:['rgba(255,209,102,.8)','rgba(160,174,192,.8)','rgba(193,127,89,.8)'], borderWidth:0 }] },
+  options: { plugins: { legend: { position:'bottom' } } }
+});
+
+new Chart(document.getElementById('statusChart'), {
+  type: 'doughnut',
+  data: { labels: ['Active','At Risk','Churned','Retained'],
+    datasets: [{ data: D.status,
+      backgroundColor: ['#00d97e','#ffd166','#ff4d6d','#4f8ef7'], borderWidth:0, hoverOffset:6 }] },
+  options: { plugins: { legend: { position:'bottom' } }, cutout:'65%' }
+});
+
+new Chart(document.getElementById('monthlyChart'), {
+  type: 'line',
+  data: {
+    labels: D.monthly_labels.length ? D.monthly_labels : ['No data'],
+    datasets: [{ label:'New Customers', data: D.monthly_data.length ? D.monthly_data : [0],
+      borderColor:'#4f8ef7', backgroundColor:'rgba(79,142,247,.12)',
+      fill:true, tension:0.4, pointRadius:5, pointBackgroundColor:'#4f8ef7' }]
+  },
+  options: { plugins: { legend: { display:false } },
+    scales: { y: { grid: { color:'#1e2a3a' } }, x: { grid: { display:false } } } }
+});
+</script>
+{% endblock %}

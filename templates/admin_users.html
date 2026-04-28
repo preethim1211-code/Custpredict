@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}All Users – CustPredict Admin{% endblock %}
+{% block page_title %}All Users{% endblock %}
+
+{% block content %}
+<div class="data-card">
+  <div class="data-card-header">
+    <h6>{{ user_stats|length }} Registered Users</h6>
+    <span class="text-muted" style="font-size:12px;">Admin view only</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table custom-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Username</th>
+          <th>Full Name</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Customers</th>
+          <th>Registered</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in user_stats %}
+        {% set u = item.user %}
+        <tr>
+          <td class="text-muted">{{ u.id }}</td>
+          <td>
+            <strong>{{ u.username }}</strong>
+            {% if u.id == current_user.id %}
+              <span class="badge-pill badge-blue ms-1" style="font-size:10px;">You</span>
+            {% endif %}
+          </td>
+          <td>{{ u.full_name or '—' }}</td>
+          <td class="text-muted" style="font-size:12px;">{{ u.email }}</td>
+          <td>
+            <span class="badge-pill {{ 'badge-gold' if u.role=='admin' else 'badge-gray' }}">
+              {{ u.role }}
+            </span>
+          </td>
+          <td>
+            <span class="badge-pill badge-blue">{{ item.customer_count }}</span>
+          </td>
+          <td class="text-muted">{{ u.created_at.strftime('%d %b %Y') }}</td>
+          <td>
+            {% if u.id != current_user.id %}
+            <form method="POST" action="{{ url_for('admin_delete_user', uid=u.id) }}"
+                  onsubmit="return confirm('Delete {{ u.username }} and all their {{ item.customer_count }} customers?')"
+                  style="display:inline;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <button type="submit" class="btn-icon btn-icon-danger" title="Delete user">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="mt-4 p-4 data-card">
+  <h6 class="section-heading mb-2">
+    <i class="bi bi-info-circle me-2" style="color:var(--accent-blue);"></i>How user accounts work
+  </h6>
+  <p class="text-muted mb-0" style="font-size:13px;line-height:1.8;">
+    • Every person registers their own account at <code>/register</code><br>
+    • Each user only sees their own customer data — complete data isolation<br>
+    • The first person to register is automatically assigned the <strong>admin</strong> role<br>
+    • Deleting a user permanently removes all their customer records too
+  </p>
+</div>
+{% endblock %}

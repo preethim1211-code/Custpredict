@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Audit Log – CustPredict{% endblock %}
+{% block page_title %}Audit Log{% endblock %}
+
+{% block content %}
+<div class="data-card">
+  <div class="data-card-header">
+    <h6>Last {{ logs|length }} Actions</h6>
+    <span class="text-muted" style="font-size:12px;">Showing most recent first</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table custom-table">
+      <thead><tr><th>Timestamp</th><th>User</th><th>Action</th></tr></thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td class="text-muted" style="white-space:nowrap;">{{ log.timestamp.strftime('%d %b %Y %H:%M:%S') }}</td>
+          <td><span class="badge-pill badge-blue">{{ log.user }}</span></td>
+          <td>{{ log.action }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3" class="text-center py-4 text-muted">No audit logs yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

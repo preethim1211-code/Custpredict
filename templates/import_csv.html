@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Bulk Import – CustPredict{% endblock %}
+{% block page_title %}Bulk CSV Import{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-5">
+    <div class="data-card p-4">
+      <h5 class="section-heading mb-3"><i class="bi bi-upload me-2"></i>Upload CSV File</h5>
+      <p class="text-muted mb-4" style="font-size:.9rem;">
+        Upload a CSV with columns: <code>name, age, gender, purchase_freq, total_spending, last_purchase_date</code><br>
+        Date format: <code>YYYY-MM-DD</code>
+      </p>
+
+      <form method="POST" enctype="multipart/form-data" action="{{ url_for('import_csv') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <div class="mb-4">
+          <label class="form-label-custom">CSV File</label>
+          <input type="file" name="csv_file" accept=".csv" class="form-control form-control-custom" required/>
+        </div>
+        <button type="submit" class="btn-predict w-100">
+          <i class="bi bi-cloud-upload me-2"></i>Import & Predict All
+        </button>
+      </form>
+
+      <div class="mt-4 p-3" style="background:var(--bg-elevated);border-radius:var(--radius-sm);border:1px solid var(--border);">
+        <h6 style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">SAMPLE CSV FORMAT</h6>
+        <pre style="font-size:11px;color:var(--accent-cyan);margin:0;overflow-x:auto;">name,age,gender,purchase_freq,total_spending,last_purchase_date
+Amit Kumar,32,Male,20,1500.00,2024-11-01
+Priya Nair,27,Female,35,3200.00,2024-12-15</pre>
+      </div>
+
+      <div class="mt-3">
+        <a href="{{ url_for('export_csv') }}" class="btn-sm-pill" style="font-size:12px;">
+          <i class="bi bi-download me-1"></i>Download existing data as CSV template
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    {% if results %}
+    <div class="data-card">
+      <div class="data-card-header">
+        <h6>Import Results — {{ results|length }} rows processed</h6>
+        <span class="badge-pill badge-success">{{ results|selectattr('status','equalto','OK')|list|length }} added</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table custom-table">
+          <thead><tr><th>Name</th><th>Status</th><th>Churn (RF)</th><th>Value (RF)</th></tr></thead>
+          <tbody>
+            {% for r in results %}
+            <tr>
+              <td><strong>{{ r.name }}</strong></td>
+              <td>
+                {% if r.status == 'OK' %}
+                  <span class="badge-pill badge-success">✓ Imported</span>
+                {% else %}
+                  <span class="badge-pill badge-danger">{{ r.status }}</span>
+                {% endif %}
+              </td>
+              <td>{% if r.status=='OK' %}<span class="badge-pill {{ 'badge-danger' if r.churn=='Yes' else 'badge-success' }}">{{ r.churn }}</span>{% else %}—{% endif %}</td>
+              <td>{% if r.status=='OK' %}<span class="badge-pill {{ 'badge-gold' if r.value=='High' else ('badge-blue' if r.value=='Medium' else 'badge-gray') }}">{{ r.value }}</span>{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon"><i class="bi bi-file-earmark-spreadsheet"></i></div>
+      <h5>Ready to Import</h5>
+      <p>Upload a CSV file and CustPredict will run predictions on all rows automatically.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

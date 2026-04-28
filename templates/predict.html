@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}Predict – CustPredict{% endblock %}
+{% block page_title %}New Prediction{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <!-- Form -->
+  <div class="col-lg-5">
+    <div class="data-card p-4">
+      <h5 class="section-heading mb-4"><i class="bi bi-person-plus-fill me-2"></i>Customer Details</h5>
+      <form method="POST" action="{{ url_for('predict') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <div class="mb-3">
+          <label class="form-label-custom">Full Name</label>
+          <input type="text" name="name" class="form-control form-control-custom" placeholder="e.g. Priya Sharma" required/>
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-6">
+            <label class="form-label-custom">Age</label>
+            <input type="number" name="age" min="18" max="100" class="form-control form-control-custom" placeholder="30" required/>
+          </div>
+          <div class="col-6">
+            <label class="form-label-custom">Gender</label>
+            <select name="gender" class="form-control form-control-custom" required>
+              <option value="">Select…</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label-custom">Purchase Frequency <small>(per year)</small></label>
+          <input type="number" name="purchase_freq" min="1" max="365" class="form-control form-control-custom" placeholder="12" required/>
+        </div>
+        <div class="mb-3">
+          <label class="form-label-custom">Total Spending <small>(USD)</small></label>
+          <div class="input-group-custom">
+            <span>$</span>
+            <input type="number" name="total_spending" step="0.01" min="0" class="form-control form-control-custom" placeholder="1250.00" required/>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label-custom">Last Purchase Date</label>
+          <input type="date" name="last_purchase_date" class="form-control form-control-custom" required/>
+        </div>
+        <div class="mb-4">
+          <label class="form-label-custom">Notes <small>(optional)</small></label>
+          <textarea name="notes" class="form-control form-control-custom" rows="2" placeholder="Any additional context…"></textarea>
+        </div>
+        <button type="submit" class="btn-predict w-100">
+          <i class="bi bi-lightning-charge-fill me-2"></i>Run Prediction
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="col-lg-7">
+    {% if result %}
+    <div class="result-wrapper">
+      <div class="result-header">
+        <i class="bi bi-check-circle-fill result-icon"></i>
+        <div>
+          <h4>{{ result.name }}</h4>
+          <p class="mb-0 text-muted">Prediction complete · <a href="{{ url_for('customer_detail', cid=result.id) }}" class="text-accent">View profile →</a></p>
+        </div>
+      </div>
+
+      <!-- Churn – 3 models -->
+      <div class="result-section">
+        <h6 class="result-section-title">Churn Prediction (3 Models)</h6>
+        <div class="row g-3">
+          {% for label, churn, prob in [
+              ('Logistic Reg.', result.churn_lr, result.churn_prob_lr),
+              ('Random Forest', result.churn_rf, result.churn_prob_rf),
+              ('XGBoost',       result.churn_xgb, result.churn_prob_xgb)
+          ] %}
+          <div class="col-4">
+            <div class="model-result-card {{ 'danger-card' if churn=='Yes' else 'success-card' }}">
+              <span class="model-label">{{ label }}</span>
+              <span class="model-verdict">{{ churn }}</span>
+              <div class="prob-bar-wrap">
+                <div class="prob-bar" style="width:{{ prob }}%;background:{{ '#ff4d6d' if churn=='Yes' else '#00d97e' }}"></div>
+              </div>
+              <span class="prob-text">{{ prob }}%</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Value – 3 models -->
+      <div class="result-section">
+        <h6 class="result-section-title">Customer Value (3 Models)</h6>
+        <div class="row g-3">
+          {% for label, val in [('Logistic Reg.', result.value_lr),('Random Forest', result.value_rf),('XGBoost', result.value_xgb)] %}
+          <div class="col-4">
+            <div class="model-result-card value-card">
+              <span class="model-label">{{ label }}</span>
+              <span class="model-verdict {{ 'text-gold' if val=='High' else ('text-blue' if val=='Medium' else 'text-muted') }}">{{ val }}</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Segment -->
+      <div class="result-section">
+        <h6 class="result-section-title">K-Means Cluster</h6>
+        <div class="segment-badge segment-{{ result.segment|lower }}">
+          <i class="bi bi-gem me-2"></i>{{ result.segment }} Tier
+        </div>
+      </div>
+
+      <!-- SHAP -->
+      <div class="result-section">
+        <h6 class="result-section-title">SHAP Feature Contributions (why this churn score?)</h6>
+        <div class="shap-bars">
+          {% for feat, val in result.shap|dictsort(by='value', reverse=true) %}
+          <div class="shap-row">
+            <span class="shap-feat">{{ feat }}</span>
+            <div class="shap-bar-wrap">
+              <div class="shap-bar {{ 'shap-pos' if val > 0 else 'shap-neg' }}"
+                   style="width:{{ [([val|abs, 0.5]|max) * 100, 100]|min }}%"></div>
+            </div>
+            <span class="shap-val {{ 'shap-pos-text' if val > 0 else 'shap-neg-text' }}">{{ '%+.3f'|format(val) }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        <p class="shap-hint"><span class="shap-pos-text">■ Red = increases churn risk</span> &nbsp; <span class="shap-neg-text">■ Blue = reduces churn risk</span></p>
+      </div>
+
+      <!-- Radar chart -->
+      <div class="result-section">
+        <h6 class="result-section-title">Risk Overview</h6>
+        <canvas id="radarChart" height="180"></canvas>
+      </div>
+    </div>
+
+    <script>
+    new Chart(document.getElementById('radarChart'), {
+      type: 'radar',
+      data: {
+        labels: ['LR Churn %','RF Churn %','XGB Churn %','Value Score','Segment Score'],
+        datasets: [{
+          label: 'Profile',
+          data: [
+            {{ result.churn_prob_lr }}, {{ result.churn_prob_rf }}, {{ result.churn_prob_xgb }},
+            {{ 90 if result.value_rf=='High' else (55 if result.value_rf=='Medium' else 20) }},
+            {{ 90 if result.segment=='Gold' else (55 if result.segment=='Silver' else 20) }}
+          ],
+          backgroundColor:'rgba(79,142,247,.2)', borderColor:'#4f8ef7',
+          pointBackgroundColor:'#4f8ef7', borderWidth:2
+        }]
+      },
+      options: {
+        scales: { r: { min:0, max:100, ticks:{ display:false },
+          grid:{ color:'#1e2a3a' }, pointLabels:{ font:{size:10}, color:'#8892a4' } } },
+        plugins: { legend: { display:false } }
+      }
+    });
+    </script>
+
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon"><i class="bi bi-cpu"></i></div>
+      <h5>Ready to Predict</h5>
+      <p>Fill in the customer details and click <strong>Run Prediction</strong><br>to get AI-powered insights from 3 models.</p>
+      <div class="model-chips">
+        <span class="chip"><i class="bi bi-check2-circle"></i> Logistic Regression</span>
+        <span class="chip"><i class="bi bi-check2-circle"></i> Random Forest</span>
+        <span class="chip"><i class="bi bi-check2-circle"></i> XGBoost</span>
+        <span class="chip"><i class="bi bi-check2-circle"></i> K-Means</span>
+        <span class="chip"><i class="bi bi-check2-circle"></i> SHAP Explainability</span>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

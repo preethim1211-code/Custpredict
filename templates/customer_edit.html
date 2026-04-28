@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ c.name }} – CustPredict{% endblock %}
+{% block page_title %}Edit Customer{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="data-card p-4">
+      <h5 class="section-heading mb-4"><i class="bi bi-pencil-fill me-2"></i>Edit — {{ c.name }}</h5>
+
+      <form method="POST" action="{{ url_for('customer_edit', cid=c.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+        <div class="mb-3">
+          <label class="form-label-custom">Full Name</label>
+          <input type="text" name="name" value="{{ c.name }}" class="form-control form-control-custom" required/>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-6">
+            <label class="form-label-custom">Age</label>
+            <input type="number" name="age" value="{{ c.age }}" min="18" max="100" class="form-control form-control-custom" required/>
+          </div>
+          <div class="col-6">
+            <label class="form-label-custom">Gender</label>
+            <select name="gender" class="form-control form-control-custom" required>
+              <option value="Male"   {{ 'selected' if c.gender=='Male'   }}>Male</option>
+              <option value="Female" {{ 'selected' if c.gender=='Female' }}>Female</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label-custom">Purchase Frequency <small>(per year)</small></label>
+          <input type="number" name="purchase_freq" value="{{ c.purchase_freq }}" min="1" max="365" class="form-control form-control-custom" required/>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label-custom">Total Spending <small>(USD)</small></label>
+          <div class="input-group-custom">
+            <span>$</span>
+            <input type="number" name="total_spending" value="{{ c.total_spending }}" step="0.01" min="0" class="form-control form-control-custom" required/>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label-custom">Last Purchase Date</label>
+          <input type="date" name="last_purchase_date" value="{{ c.last_purchase_date }}" class="form-control form-control-custom" required/>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label-custom">Status</label>
+          <select name="status" class="form-control form-control-custom">
+            <option value="Active"   {{ 'selected' if c.status=='Active'   }}>Active</option>
+            <option value="At Risk"  {{ 'selected' if c.status=='At Risk'  }}>At Risk</option>
+            <option value="Churned"  {{ 'selected' if c.status=='Churned'  }}>Churned</option>
+            <option value="Retained" {{ 'selected' if c.status=='Retained' }}>Retained</option>
+          </select>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label-custom">Notes</label>
+          <textarea name="notes" class="form-control form-control-custom" rows="3">{{ c.notes or '' }}</textarea>
+        </div>
+
+        <div style="display:flex;gap:10px;">
+          <button type="submit" class="btn-predict" style="flex:1;">
+            <i class="bi bi-arrow-repeat me-2"></i>Save & Re-predict
+          </button>
+          <a href="{{ url_for('customer_detail', cid=c.id) }}" class="btn-action-pill btn-gray" style="flex:0 0 auto;">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

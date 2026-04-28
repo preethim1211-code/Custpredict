@@ -1,0 +1,72 @@
+{
+  "churn_metrics": {
+    "lr": {
+      "accuracy": 0.93,
+      "precision": 0.8333,
+      "recall": 0.7895,
+      "f1": 0.8108,
+      "cv_mean": 0.917,
+      "cv_std": 0.0103,
+      "confusion": [
+        [
+          156,
+          6
+        ],
+        [
+          8,
+          30
+        ]
+      ]
+    },
+    "rf": {
+      "accuracy": 0.905,
+      "precision": 0.7714,
+      "recall": 0.7105,
+      "f1": 0.7397,
+      "cv_mean": 0.903,
+      "cv_std": 0.0129,
+      "confusion": [
+        [
+          154,
+          8
+        ],
+        [
+          11,
+          27
+        ]
+      ]
+    },
+    "xgb": {
+      "accuracy": 0.905,
+      "precision": 0.7568,
+      "recall": 0.7368,
+      "f1": 0.7467,
+      "cv_mean": 0.897,
+      "cv_std": 0.0252,
+      "confusion": [
+        [
+          153,
+          9
+        ],
+        [
+          10,
+          28
+        ]
+      ]
+    }
+  },
+  "feature_importance": {
+    "Age": 0.0955,
+    "Gender": 0.0154,
+    "Purchase Freq": 0.2716,
+    "Total Spending": 0.3128,
+    "Days Since Last": 0.3047
+  },
+  "feature_names": [
+    "Age",
+    "Gender",
+    "Purchase Freq",
+    "Total Spending",
+    "Days Since Last"
+  ]
+}

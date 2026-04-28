@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}My Account – CustPredict{% endblock %}
+{% block page_title %}My Account{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+  <!-- ── Left: profile card ── -->
+  <div class="col-lg-4">
+    <div class="data-card p-4 text-center mb-4">
+      <div class="profile-avatar" style="width:80px;height:80px;font-size:32px;margin:0 auto 16px;">
+        {{ current_user.username[0].upper() }}
+      </div>
+      <h4 class="mb-1">{{ current_user.username }}</h4>
+      {% if current_user.full_name %}
+        <p class="text-muted mb-1">{{ current_user.full_name }}</p>
+      {% endif %}
+      <p class="text-muted mb-2" style="font-size:13px;">{{ current_user.email }}</p>
+      <span class="badge-pill {{ 'badge-gold' if current_user.role=='admin' else 'badge-blue' }}">
+        {{ current_user.role }}
+      </span>
+
+      <div class="mt-4">
+        <div class="detail-row">
+          <span>Member since</span>
+          <strong>{{ current_user.created_at.strftime('%d %b %Y') }}</strong>
+        </div>
+        <div class="detail-row">
+          <span>Total customers</span>
+          <strong>{{ total_customers }}</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Right: forms ── -->
+  <div class="col-lg-8">
+
+    <!-- Update profile -->
+    <div class="data-card p-4 mb-4">
+      <h5 class="section-heading mb-4"><i class="bi bi-person-fill me-2"></i>Update Profile</h5>
+      <form method="POST" action="{{ url_for('account') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <input type="hidden" name="action" value="update_profile"/>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label-custom">Full Name</label>
+            <input type="text" name="full_name" value="{{ current_user.full_name or '' }}"
+                   class="form-control form-control-custom" placeholder="Your full name"/>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label-custom">Email Address</label>
+            <input type="email" name="email" value="{{ current_user.email }}"
+                   class="form-control form-control-custom" required/>
+          </div>
+        </div>
+        <div class="mt-3">
+          <button type="submit" class="btn-action-pill btn-blue">
+            <i class="bi bi-check2 me-1"></i> Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Change password -->
+    <div class="data-card p-4 mb-4">
+      <h5 class="section-heading mb-4"><i class="bi bi-key-fill me-2"></i>Change Password</h5>
+      <form method="POST" action="{{ url_for('account') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <input type="hidden" name="action" value="change_password"/>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label-custom">Current Password</label>
+            <input type="password" name="old_password" class="form-control form-control-custom" required/>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label-custom">New Password</label>
+            <input type="password" name="new_password" class="form-control form-control-custom"
+                   minlength="6" required/>
+          </div>
+          <div class="col-md-4 d-flex align-items-end">
+            <button type="submit" class="btn-action-pill btn-purple w-100" style="justify-content:center;">
+              <i class="bi bi-shield-check me-1"></i> Update
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Danger zone -->
+    <div class="data-card p-4" style="border-color:rgba(255,77,109,.25);">
+      <h5 class="section-heading mb-2" style="color:var(--accent-red);">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>Danger Zone
+      </h5>
+      <p class="text-muted mb-4" style="font-size:13px;">
+        Permanently delete your account and <strong>all {{ total_customers }} customer records</strong>.
+        This cannot be undone.
+      </p>
+      <form method="POST" action="{{ url_for('account') }}"
+            onsubmit="return confirm('This will permanently delete your account and ALL your data. Are you absolutely sure?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <input type="hidden" name="action" value="delete_account"/>
+        <div class="row g-3 align-items-end">
+          <div class="col-md-8">
+            <label class="form-label-custom">Type your username to confirm: <strong style="color:var(--text-primary);">{{ current_user.username }}</strong></label>
+            <input type="text" name="confirm_delete" class="form-control form-control-custom"
+                   placeholder="Type your username exactly" required/>
+          </div>
+          <div class="col-md-4">
+            <button type="submit" class="btn-action-pill btn-red w-100" style="justify-content:center;">
+              <i class="bi bi-trash me-1"></i> Delete Account
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
